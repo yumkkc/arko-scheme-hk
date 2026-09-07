@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification #-}
+
 module Lisp where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -17,6 +19,12 @@ data LispError = NumArgs Integer [LispVal]
                | UnboundVar String String
                | Default String
 
+
+type ThrowsError = Either LispError
+
+data Unpacker = forall a . Eq a => AnyUnpacker (LispVal -> ThrowsError a)
+
+-- data Unpacker a = AnyUnpacker (LispVal -> ThrowsError a)
 
 showVal :: LispVal -> String
 showVal (Atom s)     = s
@@ -40,6 +48,4 @@ unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
 instance Show LispVal where show = showVal
-instance Show LispError where show  = showError               
-
-type ThrowsError = Either LispError
+instance Show LispError where show  = showError

@@ -76,7 +76,8 @@ primitives = [
               ("cdr", cdr),
               ("cons", cons),
               ("eqv?", eqv),
-              ("eq?", eqv)
+              ("eq?", eqv),
+              ("equal?", equal)
               ]
 
 apply:: String -> [LispVal] -> ThrowsError LispVal
@@ -121,6 +122,22 @@ eqv [(List xs), (List ys)]
   | otherwise               = (mapM (\(a,b) -> eqv [a,b]) $ zip xs ys) >>= return . foldl1 check
     where check (Bool x) (Bool y) = Bool $ x == y
           check _ _               = Bool False
+eqv [_,_]                                    = return $ Bool False
+eqv badArgList                              = throwError $ NumArgs 2 badArgList
+
+unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
+unpackEquals arg1 arg2 (AnyUnpacker unpacker) =
+  do unpacked1 <- unpacker arg1
+     unpacked2 <- unpacker arg2
+     return $ unpacked1 == unpacked2
+  `catchError` (const $ return False)
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal [arg1, arg2] = do
+  primitiveEquals <- or <$> mapM (unpackEquals arg1 arg2) [AnyUnpacker unpackNum, AnyUnpacker unpackString, AnyUnpacker unpackBool]
+  eqvEquals       <- eqv [arg1, arg2]
+  return $ Bool $ (primitiveEquals || let (Bool x) = eqvEquals in x)
+equal badArgList   = throwError $ NumArgs 2 badArgList
 
 eval :: LispVal -> ThrowsError LispVal
 eval p@(Number _) = return p
