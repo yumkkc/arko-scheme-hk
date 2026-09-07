@@ -74,7 +74,9 @@ primitives = [
               ("string>=?", strBoolBinop (>=)),
               ("car", car),
               ("cdr", cdr),
-              ("cons", cons)
+              ("cons", cons),
+              ("eqv?", eqv),
+              ("eq?", eqv)
               ]
 
 apply:: String -> [LispVal] -> ThrowsError LispVal
@@ -107,6 +109,18 @@ cons [x, (List p)]          = return $ List $ x : p
 cons [x , DottedList xs y]  = return $ DottedList (x : xs) y
 cons [x , y]                = return $ DottedList [x] y
 cons badArgList             = throwError $ NumArgs 2 badArgList
+
+eqv :: [LispVal] -> ThrowsError LispVal
+eqv [(Bool x), (Bool y)]                    = return $ Bool $ x == y
+eqv [(Number x), (Number y)]                = return $ Bool $ x == y
+eqv [(String x), (String y)]                = return $ Bool $ x == y
+eqv [(Atom x), (Atom y)]                    = return $ Bool $ x == y
+eqv [(DottedList xs x), (DottedList ys y)]  = eqv [List $ xs ++ [x] , List $ ys ++ [y]]
+eqv [(List xs), (List ys)]
+  | length xs /= length ys  = return $ Bool False
+  | otherwise               = (mapM (\(a,b) -> eqv [a,b]) $ zip xs ys) >>= return . foldl1 check
+    where check (Bool x) (Bool y) = Bool $ x == y
+          check _ _               = Bool False
 
 eval :: LispVal -> ThrowsError LispVal
 eval p@(Number _) = return p
